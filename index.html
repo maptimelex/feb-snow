@@ -1,0 +1,252 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>index</title>
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<link rel="stylesheet" type="text/css" href="./Qgis2threejs.css">
+<style>
+  #webgl {
+    background-color: black;
+    background-image: url("squirrel-king-icon-tease2.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+  }
+  #heading-container{
+    width: 100%;
+    background-color: black;
+  }
+  #heading{
+    color:white;
+    font-size:12px;
+    font-family:'Comic Sans MS', 'Open Sans', sans-serif;
+    width:50%;
+    text-align: center;
+    margin: 0 auto 0 auto;
+    display: block;
+    padding: 5px 0 5px 0;
+  }
+  a {
+    color: green;
+  }
+  #r{
+    color:red;
+    background-color: violet;
+  }
+  #o{
+    color:orange;
+    background-color: indigo;
+  }
+  #y{
+    color:yellow;
+    background-color: green;
+  }
+  #g{
+    color:green;
+    background-color: blue;
+  }
+  #b{
+    color:blue;
+    background-color: yellow;
+  }
+  #i{
+    color:indigo;
+    background-color: orange;
+  }
+  #v{
+    color:violet;
+    background-color: red;
+  }
+  .label{
+    font-family: 'Comic Sans MS', 'Open Sans', sans-serif;
+    color: red;
+  }
+</style>
+</head>
+<body onLoad="onLoad()">
+<div id="heading-container">
+  <div id="heading">  
+matpimeBoston grossly misrepresented the post-snow storm conditions that caused maptimeLEX to cancel and reschedule their 2/18 meetup with an <a href="https://twitter.com/maptimeBoston/status/568509010946756608/photo/1" target="_blank">inflammatory map</a>. Here we would like to respond with a more accurate rendering of the altered terrain in Lexington - and Kentucky more generally - that led to our decision to hold off our meetiup until 2/25.</br>
+<span id="r">S</span>
+<span id="o">q</span>
+<span id="y">U</span>
+<span id="g">i</span>
+<span id="b">r</span>
+<span id="i">R</span>
+<span id="v">e</span>
+<span id="r">L</span>
+<span id="o">m</span>
+<span id="y">A</span>
+<span id="g">p</span> 
+
+<span id="b">I</span>
+<span id="i">s</span> 
+
+<span id="v">B</span>
+<span id="r">e</span>
+<span id="o">S</span>
+<span id="y">t</span> 
+
+<span id="g">M</span>
+<span id="b">a</span>
+<span id="i">P</span>
+<span id="v">!</span><span id="r">!</span><span id="o">!</span><span id="y">!</span><span id="g">!</span><span id="b">!</span>
+  </div>
+</div>
+<div id="webgl"></div>
+<script src="./threejs/three.min.js"></script>
+<script src="./threejs/OrbitControls.js"></script>
+<script type="text/javascript" src="./dat-gui/dat.gui.min.js"></script>
+<script src="./Qgis2threejs.js"></script>
+<script>
+  option.bgcolor = 0x000000;
+</script>
+<script src="./index.js"></script>
+<script>
+  var container = document.getElementById('webgl');
+  var width = window.innerWidth, height = window.innerHeight;
+
+  // parse URL parameters
+  var vars = parseParams();
+
+  if ("popup" in vars) {
+    // open popup window
+    var c = window.location.href.split("?");
+    window.open(c[0] + "?" + c[1].replace(/&?popup/, ""), "popup", "width=" + vars.width + ",height=" + vars.height);
+  }
+  if (vars.width && vars.height) {
+    // set canvas size
+    container.style.width = vars.width + "px";
+    container.style.height = vars.height + "px";
+    width = vars.width;
+    height = vars.height;
+  }
+
+  var renderer = new THREE.WebGLRenderer({alpha: true});
+  renderer.setSize(width, height);
+  renderer.setClearColor(0x000000, 0);
+
+  var scene = new THREE.Scene();
+
+  // light
+  buildLights(scene);
+
+  // camera and controls
+  var camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+  camera.position.set(0, -100, 100);
+
+  var controls = createControls(camera, renderer.domElement);
+  restoreView(controls, vars);
+
+  addDefaultKeyEventListener();
+
+  // marker at queried point
+  var queryMarker = new THREE.Mesh(new THREE.SphereGeometry(option.qmarker.r),
+                                   new THREE.MeshLambertMaterial({color: option.qmarker.c, ambient: option.qmarker.c, opacity: option.qmarker.o, transparent: (option.qmarker.o < 1)}));
+  queryMarker.visible = false;
+  scene.add(queryMarker);
+
+  // build models
+  buildModels(scene);
+
+  container.appendChild(renderer.domElement);
+  render();
+
+  function render() {
+    controls.update();
+    requestAnimationFrame(render);
+    renderer.render(scene, camera);
+    updateLabels();
+  }
+
+  // Called from *Controls.js when canvas is clicked
+  function canvas_clicked(e) {
+    var objs = intersectObjects(e.clientX, e.clientY);
+    for (var i = 0, l = objs.length; i < l; i++) {
+      if (objs[i].object.visible) {
+        showQueryResult(objs[i]);
+        return;
+      }
+    }
+    closePopup();
+  }
+
+  function showQueryResult(obj) {
+    queryMarker.position.set(obj.point.x, obj.point.y, obj.point.z);
+    queryMarker.visible = true;
+    var object = obj.object;
+    var pt = world.toMapCoordinates(obj.point.x, obj.point.y, obj.point.z);
+    var r = [];
+    r.push("Clicked coordinates");
+    r.push(" X: " + pt.x.toFixed(2));
+    r.push(" Y: " + pt.y.toFixed(2));
+    r.push(" Z: " + pt.z.toFixed(2));
+    if (object.userData !== undefined) {
+      var layer = lyr[object.userData[0]];
+      r.push("");
+      r.push("Layer: " + layer.name);
+
+      if (layer.type != "dem") {
+        var f = layer.f[object.userData[1]];
+        if (f.a !== undefined) {
+          for (var i = 0, l = f.a.length; i < l; i++) {
+            r.push(layer.a[i] + ": " + f.a[i]);
+          }
+        }
+      }
+    }
+    document.getElementById("queryresult").innerHTML = r.join("<br>");
+    document.getElementById("queryresult").style.display = "block";
+    document.getElementById("pageinfo").style.display = "none";
+    document.getElementById("popup").style.display = "block";
+  }
+
+  function onLoad() {
+    document.getElementById("closebtn").onclick = closePopup;
+  }
+
+  function showInfo() {
+    document.getElementById("urlbox").value = currentViewUrl();
+    var help = (typeof controlHelp === "undefined") ? "* Keys" : controlHelp.split("\n").join("<br>");
+    help += "<br> I : Show page information<br> L : Toggle label visibility<br> Shift + R : Reset<br> Shift + S : Save as image";
+    document.getElementById("usage").innerHTML = help;
+    document.getElementById("pageinfo").style.display = "block";
+    document.getElementById("queryresult").style.display = "none";
+    document.getElementById("popup").style.display = "block";
+  }
+
+  function closePopup() {
+    document.getElementById("popup").style.display = "none";
+    queryMarker.visible = false;
+  }
+</script>
+<script src="./CustomPlane.js"></script>
+
+<!-- popup -->
+<div id="popup" style="display:none;">
+<div id="popupbar"><span id="closebtn">X</span></div>
+<div id="popupcontent">
+ <div id="queryresult"></div>
+ <div id="pageinfo">
+  <h1>Current view URL</h1>
+  <div><input id="urlbox" type="text"></div>
+
+  <hr>
+  <h1>Usage</h1>
+  <div id="usage"></div>
+
+  <hr>
+  <h1>About</h1>
+  <div id="about">This page was made with <a href="http://www.qgis.org/" target="_blank">QGIS</a> and <a href="https://github.com/minorua/Qgis2threejs" target="_blank">Qgis2threejs</a> plugin, 
+and uses the following library:</div>
+  <ul>
+  <li>three.js <a href="http://threejs.org/" target="_blank">http://threejs.org/</a> <a href="./threejs/LICENSE" target="_blank" class="license">(LICENSE)</a></li>
+  <li>dat-gui <a href="https://code.google.com/p/dat-gui/" target="_blank">https://code.google.com/p/dat-gui/</a> <a href="./dat-gui/license.txt" target="_blank" class="license">(LICENSE)</a></li>
+  </ul>
+ </div>
+</div></div>
+<!-- footer -->
+<div id="footer"></div>
+</body>
+</html>
